@@ -4,7 +4,7 @@ export default async (request, context) => {
       headers: {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "POST",
-        "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
       },
     });
   }
@@ -15,16 +15,19 @@ export default async (request, context) => {
     url.pathname +
     url.search;
 
-  // 先把 body 读成文本再转发，避免流被提前消费
   const bodyText = await request.text();
+
+  // 透传 Authorization header（Bearer token）或降级走 ?key=
+  const headers = { "Content-Type": "application/json" };
+  const auth = request.headers.get("Authorization");
+  if (auth) headers["Authorization"] = auth;
 
   const upstream = await fetch(target, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: bodyText,
   });
 
-  // 非 200 直接返回错误文本，方便调试
   if (!upstream.ok) {
     const errText = await upstream.text();
     return new Response(errText, {
@@ -36,13 +39,12 @@ export default async (request, context) => {
     });
   }
 
-  // 透传流
   return new Response(upstream.body, {
     status: 200,
     headers: {
       "Content-Type": "text/event-stream; charset=utf-8",
       "Cache-Control": "no-cache",
-      "X-Accel-Buffering": "no",        // 关键：禁止中间层缓冲
+      "X-Accel-Buffering": "no",
       "Access-Control-Allow-Origin": "*",
     },
   });
