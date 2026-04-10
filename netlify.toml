@@ -1,3 +1,7 @@
-[[edge_functions]]
-  path = "/*"
-  function = "proxy"
+# 直接通过网关重定向，不走函数，避开 500 超时
+[[redirects]]
+  from = "/v1beta/*"
+  to = "https://generativelanguage.googleapis.com/v1beta/:splat"
+  status = 200
+  force = true
+  headers = {X-From = "Netlify"}
